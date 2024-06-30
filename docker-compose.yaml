@@ -1,0 +1,45 @@
+version: '3.5'
+
+services:
+  accrual:
+    container_name: accrual
+    build: 
+      context: .
+      dockerfile: Dockerfile-accrual
+    command: 
+      - "-a"
+      - ":8090"
+      - "-d"
+      - "host=postgres-accrual port=5432 user=username password=password dbname=accrual sslmode=disable"
+    ports:
+      - "8090:8090"
+    depends_on:
+      - postgres-accrual
+  postgres-accrual:
+    container_name: postgres-accrual
+    image: postgres:16.3-alpine
+    environment:
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: accrual
+      PGDATA: /data/postgres
+    volumes:
+       - postgres-accrual:/data/postgres
+    ports:
+      - "15432:5432"
+
+  postgres-gophermart:
+    container_name: postgres-gophermart
+    image: postgres:16.3-alpine
+    environment:
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: gophermart
+      PGDATA: /data/postgres
+    volumes:
+       - postgres-gophermart:/data/postgres
+    ports:
+      - "25432:5432"
+volumes:
+    postgres-gophermart:
+    postgres-accrual:
