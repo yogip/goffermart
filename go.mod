@@ -3,10 +3,13 @@ module goffermart
 go 1.22.4
 
 require (
+	github.com/caarlos0/env/v11 v11.1.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/pressly/goose/v3 v3.21.1
 	go.uber.org/zap v1.27.0
+	golang.org/x/crypto v0.23.0
 )
 
 require (
@@ -38,7 +41,6 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect

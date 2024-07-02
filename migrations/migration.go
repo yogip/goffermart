@@ -18,7 +18,7 @@ var embedMigrations embed.FS
 func RunMigration(ctx context.Context, cfg *config.Config) error {
 	logger.Log.Debug("Run migrations")
 
-	db, err := sql.Open("pgx", cfg.Storage.DatabaseDSN)
+	db, err := sql.Open("pgx", cfg.Server.DatabaseDSN)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Database: %w", err)
 	}

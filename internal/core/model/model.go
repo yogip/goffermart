@@ -1,31 +1,18 @@
 package model
 
-type MetricRequest struct {
-	Name string     `uri:"name" binding:"required"`
-	Type MetricType `uri:"type" binding:"required" oneof:"gauge counter"`
+type UserRequest struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
 }
 
-type MetricResponse struct {
-	Name  string
-	Type  MetricType
-	Value string
+type User struct {
+	ID           int64   `json:"id"`
+	Login        string  `json:"login"`
+	PasswordHash *[]byte `json:"password"`
 }
 
-type ListMetricResponse struct {
-	Metrics []*MetricResponse
-}
-
-type MetricUpdateRequest struct {
-	Name  string     `uri:"name" binding:"required"`
-	Type  MetricType `uri:"type" binding:"required" oneof:"gauge counter"`
-	Value string     `uri:"value" binding:"required"`
-}
-
-// ID задае имя метрики
-// Delta и Value задают значение метрики в случае передачи counter и gauge соответственно
-type MetricsV2 struct {
-	ID    string     `json:"id"`
-	MType MetricType `json:"type"`
-	Delta *int64     `json:"delta,omitempty"`
-	Value *float64   `json:"value,omitempty"`
-}
+// type User struct {
+// 	ID           int64   `json:"id"`
+// 	Login        string  `json:"login"`
+// 	PasswordHash *string `json:"password,omitempty"`
+// }

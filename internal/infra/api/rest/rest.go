@@ -2,10 +2,13 @@ package rest
 
 import (
 	"context"
+	"net/http"
+
 	"goffermart/internal/core/config"
+	"goffermart/internal/core/service"
+	"goffermart/internal/infra/api/rest/handlers"
 	"goffermart/internal/infra/api/rest/middlewares"
 	"goffermart/internal/logger"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -15,14 +18,15 @@ type API struct {
 	srv *http.Server
 }
 
-func NewAPI(cfg *config.Config) *API {
-	// serviceHandler := handlers.NewSystemHandler(systemService)
+func NewAPI(cfg *config.Config, iamService *service.IAM) *API {
+	iamHandler := handlers.NewIAMHandler(iamService)
 
 	router := gin.Default()
 	router.Use(middlewares.GzipDecompressMiddleware())
 	router.Use(middlewares.GzipCompressMiddleware())
 
-	// router.GET("/ping", serviceHandler.Ping)
+	router.POST("/api/user/register", iamHandler.Register)
+	router.POST("/api/user/login", iamHandler.Login)
 
 	srv := &http.Server{Handler: router}
 	return &API{

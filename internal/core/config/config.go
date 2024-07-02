@@ -2,71 +2,48 @@ package config
 
 import (
 	"flag"
-	"fmt"
-	"os"
-	"strconv"
+	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
 type ServerConfig struct {
-	Address  string `env:"ADDRESS"`
-	LogLevel string `env:"LOG_LEVEL"`
+	Address     string        `env:"RUN_ADDRESS" envDefault:"0.0.0.0:8080"`
+	DatabaseDSN string        `env:"DATABASE_URI,unset" envDefault:"postgres-gophermart port=5432 user=username password=password dbname=gophermart sslmode=disable"`
+	LogLevel    string        `env:"LOG_LEVEL" envDefault:"debug"`
+	TokenTTL    time.Duration `env:"TOKEN_TTL" envDefault:"1h"`
+	SecretKey   string        `env:"SECRET_KEY,unset" envDefault:"local-default-secret"`
 }
 
-type StorageConfig struct {
-	StoreIntreval   int64  `env:"STORE_INTERVAL"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
-	Restore         bool   `env:"RESTORE"`
-	DatabaseDSN     string `env:"DATABASE_DSN"`
+type AccrualConfig struct {
+	Addres string `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"accrual:8090"`
 }
 
 type Config struct {
 	Server  ServerConfig
-	Storage StorageConfig
-	HashKey string `env:"KEY"`
+	Accrual AccrualConfig
 }
 
 func NewConfig() (*Config, error) {
 	cfg := Config{}
 
-	flag.StringVar(&cfg.Server.Address, "a", "localhost:8080", "address and port to run server")
-	flag.StringVar(&cfg.Server.LogLevel, "l", "info", "Log levle: debug, info, warn, error, panic, fatal")
-	flag.Int64Var(&cfg.Storage.StoreIntreval, "i", 300, "Dump DB to file with given interval. 0 - means to write all changes immediately")
-	flag.StringVar(&cfg.Storage.FileStoragePath, "f", "/tmp/metrics-db.json", "Path to dump file")
-	flag.BoolVar(&cfg.Storage.Restore, "r", true, "Restore DB dump from file")
-	flag.StringVar(&cfg.Storage.DatabaseDSN, "d", "", "Database connection string")
-	flag.StringVar(&cfg.HashKey, "k", "", "Hash key to check request signature")
+	if err := env.Parse(&cfg); err != nil {
+		return nil, err
+	}
 
-	flag.Parse()
-
-	if value, exists := os.LookupEnv("ADDRESS"); exists {
-		cfg.Server.Address = value
+	if value := flag.String("a", "", "Address and port to run server"); *value != "" {
+		cfg.Server.Address = *value
 	}
-	if value, exists := os.LookupEnv("LOG_LEVEL"); exists {
-		cfg.Server.LogLevel = value
+	if value := flag.String("d", "", "Database URI"); *value != "" {
+		cfg.Server.DatabaseDSN = *value
 	}
-	if value, exists := os.LookupEnv("STORE_INTERVAL"); exists {
-		interval, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("STORE_INTERVAL convertation error: %w", err)
-		}
-		cfg.Storage.StoreIntreval = interval
+	if value := flag.String("l", "", "Log levle: debug, info, warn, error, panic, fatal"); *value != "" {
+		cfg.Server.LogLevel = *value
 	}
-	if value, exists := os.LookupEnv("FILE_STORAGE_PATH"); exists {
-		cfg.Storage.FileStoragePath = value
+	if value := flag.String("r", "", "Accrual system addres"); *value != "" {
+		cfg.Accrual.Addres = *value
 	}
-	if value, exists := os.LookupEnv("RESTORE"); exists {
-		restore, err := strconv.ParseBool(value)
-		if err != nil {
-			return nil, fmt.Errorf("RESTORE convertation error: %w", err)
-		}
-		cfg.Storage.Restore = restore
-	}
-	if value, exists := os.LookupEnv("DATABASE_DSN"); exists {
-		cfg.Storage.DatabaseDSN = value
-	}
-	if value, exists := os.LookupEnv("KEY"); exists && value != "" {
-		cfg.HashKey = value
-	}
+	// flag.Parse()  // todo ????
 
 	return &cfg, nil
 }
