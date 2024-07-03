@@ -9,7 +9,7 @@ import (
 
 type ServerConfig struct {
 	Address     string        `env:"RUN_ADDRESS" envDefault:"0.0.0.0:8080"`
-	DatabaseDSN string        `env:"DATABASE_URI,unset" envDefault:"postgres-gophermart port=5432 user=username password=password dbname=gophermart sslmode=disable"`
+	DatabaseDSN string        `env:"DATABASE_URI,unset" envDefault:"host=postgres-gophermart port=25432 user=username password=password dbname=gophermart sslmode=disable"`
 	LogLevel    string        `env:"LOG_LEVEL" envDefault:"debug"`
 	TokenTTL    time.Duration `env:"TOKEN_TTL" envDefault:"1h"`
 	SecretKey   string        `env:"SECRET_KEY,unset" envDefault:"local-default-secret"`

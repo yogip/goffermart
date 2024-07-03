@@ -21,41 +21,65 @@ func NewIAMHandler(service *service.IAM) *IAMHandler {
 }
 
 func (h *IAMHandler) Login(ctx *gin.Context) {
-	token, err := h.service.Login("token")
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, "OK") // todo
-		return
-	}
-
-	// Authorization: Bearer <token>
-	ctx.Header("Authorization", token)
-	ctx.String(http.StatusOK, "OK") // todo
-}
-
-func (h *IAMHandler) Register(ctx *gin.Context) {
-	req := &model.UserRequest{}
-	if err := ctx.ShouldBindBodyWithJSON(&req); err != nil {
-		logger.Log.Error("Error binding schema for Register route", zap.Error(err))
+	user := &model.UserRequest{}
+	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
+		logger.Log.Error("Error binding schema for Login route", zap.Error(err))
 		ctx.JSON(
-			http.StatusBadRequest, 
-			gin.H{"status": false, "message": fmt.Sprintf("Error binding body: %s", err)}
+			http.StatusBadRequest,
+			gin.H{"status": false, "message": fmt.Sprintf("Error binding body: %s", err)},
 		)
 		return
 	}
 	log := logger.Log.With(
-		zap.String("name", req.ID),
-		zap.String("type", req.MType.String()),
-		zap.Int64p("delta", req.Delta),
-		zap.Float64p("value", req.Value),
+		zap.String("email", user.Login),
 	)
 
-	token, err := h.service.Register("token")
+	token, err := h.service.Login("token")
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, "OK") // todo
+		log.Warn("Could not Auth user", zap.Error(err))
+		ctx.JSON(
+			http.StatusBadRequest,
+			gin.H{"status": false, "message": fmt.Sprintf("Error binding body: %s", err)},
+		)
 		return
 	}
 
-	// Authorization: Bearer <token>
-	ctx.Header("Authorization", token)
-	ctx.String(http.StatusOK, "OK") // todo
+	log.Debug("User was Authentificated")
+	ctx.Header("Authorization", fmt.Sprintf("Bearer %s", token))
+	ctx.JSON(
+		http.StatusOK,
+		gin.H{"status": false, "message": "Ok"},
+	)
+}
+
+func (h *IAMHandler) Register(ctx *gin.Context) {
+	user := &model.UserRequest{}
+	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
+		logger.Log.Error("Error binding schema for Register route", zap.Error(err))
+		ctx.JSON(
+			http.StatusBadRequest,
+			gin.H{"status": false, "message": fmt.Sprintf("Error binding body: %s", err)},
+		)
+		return
+	}
+	log := logger.Log.With(
+		zap.String("email", user.Login),
+	)
+
+	token, err := h.service.Register(ctx, user)
+	if err != nil {
+		log.Warn("Could not register user", zap.Error(err))
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{"status": false, "message": fmt.Sprintf("User registration error: %s", err)},
+		)
+		return
+	}
+
+	log.Debug("User was register")
+	ctx.Header("Authorization", fmt.Sprintf("Bearer %s", token))
+	ctx.JSON(
+		http.StatusOK,
+		gin.H{"status": false, "message": "User was registered"},
+	)
 }

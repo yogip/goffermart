@@ -15,10 +15,10 @@ import (
 //go:embed *.sql
 var embedMigrations embed.FS
 
-func RunMigration(ctx context.Context, cfg *config.Config) error {
+func RunMigration(ctx context.Context, cfg *config.ServerConfig) error {
 	logger.Log.Debug("Run migrations")
 
-	db, err := sql.Open("pgx", cfg.Server.DatabaseDSN)
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Database: %w", err)
 	}

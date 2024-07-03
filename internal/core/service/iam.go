@@ -6,6 +6,7 @@ import (
 	"goffermart/internal/core/config"
 	"goffermart/internal/core/model"
 	"goffermart/internal/infra/repo"
+	"goffermart/internal/logger"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -23,8 +24,8 @@ type IAM struct {
 	userRepo *repo.UserRepo // todo Implement repo !!!
 }
 
-func NewAIM(userRepo *repo.UserRepo) *IAM {
-	return &IAM{userRepo: userRepo}
+func NewIAMService(userRepo *repo.UserRepo, cfg *config.ServerConfig) *IAM {
+	return &IAM{userRepo: userRepo, cfg: cfg}
 }
 
 func (iam *IAM) Login(token string) (string, error) {
@@ -48,6 +49,7 @@ func (iam *IAM) Register(ctx context.Context, user *model.UserRequest) (string, 
 		return "", fmt.Errorf("creating user error: %w", err)
 	}
 
+	logger.Log.Info(fmt.Sprintf("---------- u: %v", u))
 	token, err := iam.buildToken(u)
 	if err != nil {
 		return "", err
@@ -57,6 +59,10 @@ func (iam *IAM) Register(ctx context.Context, user *model.UserRequest) (string, 
 }
 
 func (iam *IAM) buildToken(user *model.User) (string, error) {
+	logger.Log.Info(fmt.Sprintf("buildToken u: %v", user))
+	logger.Log.Info(fmt.Sprintf("buildToken ID: %v", user.ID))
+	logger.Log.Info(fmt.Sprintf("buildToken LOGin: %v", user.Login))
+	logger.Log.Info(fmt.Sprintf("buildToken TokenTTL: %v", iam.cfg.TokenTTL))
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		TokenClaims{
@@ -68,10 +74,12 @@ func (iam *IAM) buildToken(user *model.User) (string, error) {
 		},
 	)
 
+	logger.Log.Info(fmt.Sprintf("buildToken key: %s", iam.cfg.SecretKey))
 	tokenString, err := token.SignedString([]byte(iam.cfg.SecretKey))
 	if err != nil {
 		return "", fmt.Errorf("build token error: %w", err)
 	}
 
+	logger.Log.Info(fmt.Sprintf("buildToken token: %s", tokenString))
 	return tokenString, nil
 }
