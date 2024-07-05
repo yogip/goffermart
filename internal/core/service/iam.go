@@ -46,10 +46,9 @@ func (iam *IAM) Register(ctx context.Context, user *model.UserRequest) (string, 
 
 	u, err := iam.userRepo.CreateUser(ctx, user.Login, hashedPassword)
 	if err != nil {
-		return "", fmt.Errorf("creating user error: %w", err)
+		return "", err
 	}
 
-	logger.Log.Info(fmt.Sprintf("---------- u: %v", u))
 	token, err := iam.buildToken(u)
 	if err != nil {
 		return "", err

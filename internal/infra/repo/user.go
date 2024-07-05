@@ -10,6 +10,8 @@ import (
 	"goffermart/internal/core/model"
 	"goffermart/internal/logger"
 	"goffermart/internal/retrier"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type UserRepo struct {
@@ -54,8 +56,14 @@ func (r *UserRepo) CreateUser(ctx context.Context, login string, hashedPassword 
 			login, hashedPassword,
 		)
 		err := row.Scan(&user.ID)
+
+		// ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)
+		var pgErr *pgconn.PgError
+		if err != nil && errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrUniqConstrain
+		}
 		if err != nil {
-			return fmt.Errorf("error creatng user: %w", err)
+			return fmt.Errorf("insert to db user: %w", err)
 		}
 		logger.Log.Debug(fmt.Sprintf("CreateUser %s -> %d", login, user.ID))
 		return nil

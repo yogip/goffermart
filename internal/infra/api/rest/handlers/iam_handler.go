@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"goffermart/internal/core/model"
 	"goffermart/internal/core/service"
+	"goffermart/internal/infra/repo"
 	"goffermart/internal/logger"
 
 	"github.com/gin-gonic/gin"
@@ -63,10 +65,18 @@ func (h *IAMHandler) Register(ctx *gin.Context) {
 		return
 	}
 	log := logger.Log.With(
-		zap.String("email", user.Login),
+		zap.String("login", user.Login),
 	)
 
 	token, err := h.service.Register(ctx, user)
+	if err != nil && errors.Is(err, repo.ErrUniqConstrain) {
+		log.Warn("Could not register user. User already exists", zap.Error(err))
+		ctx.JSON(
+			http.StatusConflict,
+			gin.H{"status": false, "message": "User already exists"},
+		)
+		return
+	}
 	if err != nil {
 		log.Warn("Could not register user", zap.Error(err))
 		ctx.JSON(
