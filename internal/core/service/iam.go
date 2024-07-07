@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"goffermart/internal/core/config"
 	"goffermart/internal/core/model"
@@ -28,13 +29,27 @@ func NewIAMService(userRepo *repo.UserRepo, cfg *config.ServerConfig) *IAM {
 	return &IAM{userRepo: userRepo, cfg: cfg}
 }
 
-func (iam *IAM) Login(token string) (string, error) {
-	// todo validate token and fetch user from DB
-	// 200 — пользователь успешно зарегистрирован и аутентифицирован;
-	// 400 — неверный формат запроса;
-	// 409 — логин уже занят;
-	// 500 — внутренняя ошибка сервера.
-	return "token", nil
+// check login and password pair and generate token if password hash match
+func (iam *IAM) Login(ctx context.Context, user *model.UserRequest) (string, error) {
+	u, err := iam.userRepo.GetUser(ctx, user.Login)
+	if err != nil {
+		return "", err
+	}
+	if u == nil {
+		return "", errors.New("")
+	}
+
+	err = bcrypt.CompareHashAndPassword(*u.PasswordHash, []byte(user.Password))
+	if err != nil {
+		return "", err
+	}
+
+	token, err := iam.buildToken(u)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 // Create new user and auth them (return token)
@@ -58,10 +73,6 @@ func (iam *IAM) Register(ctx context.Context, user *model.UserRequest) (string, 
 }
 
 func (iam *IAM) buildToken(user *model.User) (string, error) {
-	logger.Log.Info(fmt.Sprintf("buildToken u: %v", user))
-	logger.Log.Info(fmt.Sprintf("buildToken ID: %v", user.ID))
-	logger.Log.Info(fmt.Sprintf("buildToken LOGin: %v", user.Login))
-	logger.Log.Info(fmt.Sprintf("buildToken TokenTTL: %v", iam.cfg.TokenTTL))
 	token := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		TokenClaims{

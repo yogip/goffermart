@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	coreErrors "goffermart/internal/core/errors"
 	"goffermart/internal/core/model"
 	"goffermart/internal/logger"
 	"goffermart/internal/retrier"
@@ -20,11 +21,6 @@ type UserRepo struct {
 }
 
 func NewUserRepo(db *sql.DB) *UserRepo {
-	// db, err := sql.Open("pgx", cfg.DatabaseDSN)
-	// if err != nil {
-	// return nil, fmt.Errorf("failed to initialize UserRepo: %w", err)
-	// }
-
 	ret := &retrier.Retrier{
 		Strategy: retrier.Backoff(
 			3,             // max attempts
@@ -82,10 +78,9 @@ func (s *UserRepo) GetUser(ctx context.Context, login string) (*model.User, erro
 	fun := func() error {
 		var err error
 		row := s.db.QueryRowContext(ctx, "SELECT id, email, password FROM users WHERE email=$1", login)
-		err = row.Scan(&user.ID, &user.Login)
+		err = row.Scan(&user.ID, &user.Login, &user.PasswordHash)
 		if errors.Is(err, sql.ErrNoRows) {
-			user = nil
-			return nil
+			return coreErrors.ErrNotFound404
 		}
 		return err
 	}
