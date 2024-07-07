@@ -39,8 +39,8 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 	return repo
 }
 
-func (s *UserRepo) Close() {
-	s.db.Close()
+func (r *UserRepo) Close() {
+	r.db.Close()
 }
 
 func (r *UserRepo) CreateUser(ctx context.Context, login string, hashedPassword []byte) (*model.User, error) {
@@ -72,19 +72,19 @@ func (r *UserRepo) CreateUser(ctx context.Context, login string, hashedPassword 
 	return user, nil
 }
 
-func (s *UserRepo) GetUser(ctx context.Context, login string) (*model.User, error) {
+func (r *UserRepo) GetUser(ctx context.Context, login string) (*model.User, error) {
 	user := &model.User{}
 
 	fun := func() error {
 		var err error
-		row := s.db.QueryRowContext(ctx, "SELECT id, email, password FROM users WHERE email=$1", login)
+		row := r.db.QueryRowContext(ctx, "SELECT id, email, password FROM users WHERE email=$1", login)
 		err = row.Scan(&user.ID, &user.Login, &user.PasswordHash)
 		if errors.Is(err, sql.ErrNoRows) {
 			return coreErrors.ErrNotFound404
 		}
 		return err
 	}
-	err := s.retrier.Do(ctx, fun, recoverableErrors...)
+	err := r.retrier.Do(ctx, fun, recoverableErrors...)
 	if err != nil {
 		return nil, fmt.Errorf("error reading user: %w", err)
 	}
