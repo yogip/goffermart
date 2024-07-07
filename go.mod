@@ -1,6 +1,6 @@
 module goffermart
 
-go 1.22.5
+go 1.21.12
 
 require (
 	github.com/caarlos0/env/v11 v11.1.0
