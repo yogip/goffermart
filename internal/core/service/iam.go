@@ -84,7 +84,6 @@ func (iam *IAM) buildToken(user *model.User) (string, error) {
 		},
 	)
 
-	logger.Log.Info(fmt.Sprintf("buildToken key: %s", iam.cfg.SecretKey))
 	tokenString, err := token.SignedString([]byte(iam.cfg.SecretKey))
 	if err != nil {
 		return "", fmt.Errorf("build token error: %w", err)
@@ -92,4 +91,22 @@ func (iam *IAM) buildToken(user *model.User) (string, error) {
 
 	logger.Log.Info(fmt.Sprintf("buildToken token: %s", tokenString))
 	return tokenString, nil
+}
+
+func (iam *IAM) ParseToken(rawToken string) (*model.User, error) {
+	claims := &TokenClaims{}
+	token, err := jwt.ParseWithClaims(rawToken, claims,
+		func(t *jwt.Token) (interface{}, error) {
+			return []byte(iam.cfg.SecretKey), nil
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parse token error: %w", err)
+	}
+
+	if !token.Valid {
+		return nil, errors.New("tokne is not valid")
+	}
+
+	return &model.User{ID: claims.UserID, Login: claims.UserLogin}, nil
 }
