@@ -26,13 +26,13 @@ func (m *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 		}
 
 		parts := strings.Split(token, "Bearer ")
-		if len(parts) != 1 {
+		if len(parts) != 2 {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": false, "message": "Token is not valid"})
 			return
 		}
 		token = parts[1]
 
-		user, err := m.iam.ParseToken(token)
+		user, err := m.iam.ParseToken(token) // todo rename
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": false, "message": "Token is not valid"})
 			return

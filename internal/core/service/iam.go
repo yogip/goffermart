@@ -22,7 +22,7 @@ type TokenClaims struct {
 
 type IAM struct {
 	cfg      *config.ServerConfig
-	userRepo *repo.UserRepo // todo Implement repo !!!
+	userRepo *repo.UserRepo
 }
 
 func NewIAMService(userRepo *repo.UserRepo, cfg *config.ServerConfig) *IAM {

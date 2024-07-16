@@ -6,7 +6,10 @@ test:
 	go test ./...
 
 server:
-	go run cmd/server/main.go -l debug -d "host=localhost port=45432 user=username password=password dbname=metrics sslmode=disable" -k SomeKey
+	go run cmd/gophermart/main.go -l debug -d "host=localhost port=25432 user=username password=password dbname=gophermart sslmode=disable"
+
+migrate-new:
+	goose create $@ sql
 
 migrate-up:
 	goose -dir migrations postgres "user=username dbname=gophermart password=password sslmode=disable host=127.0.0.1 port=25432" up

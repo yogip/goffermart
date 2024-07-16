@@ -16,7 +16,7 @@ func NewWithdrawalsHandler(service *service.IAM) *WithdrawalsHandler {
 	return &WithdrawalsHandler{service: service}
 }
 
-func (h *WithdrawalsHandler) GetWithdrawalsList(ctx *gin.Context) {
+func (h *WithdrawalsHandler) GetWithdrawalList(ctx *gin.Context) {
 	log := logger.Log.With(
 		zap.String("tmpl", "---"),
 	)

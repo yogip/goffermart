@@ -15,12 +15,12 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type UserRepo struct {
+type OrderRepo struct {
 	db      *sql.DB
 	retrier *retrier.Retrier
 }
 
-func NewUserRepo(db *sql.DB) *UserRepo {
+func NewOrderRepo(db *sql.DB) *OrderRepo {
 	ret := &retrier.Retrier{
 		Strategy: retrier.Backoff(
 			3,             // max attempts
@@ -33,46 +33,52 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 		},
 	}
 
-	repo := &UserRepo{db: db, retrier: ret}
+	repo := &OrderRepo{db: db, retrier: ret}
 
 	logger.Log.Info("UserRepo initialized")
 	return repo
 }
 
-func (r *UserRepo) CreateUser(ctx context.Context, login string, hashedPassword []byte) (*model.User, error) {
-	user := &model.User{Login: login, PasswordHash: nil}
+func (r *OrderRepo) CreateOrder(ctx context.Context, orderId int64, user *model.User) error {
 	fun := func() error {
-		row := r.db.QueryRowContext(
+		_, err := r.db.ExecContext(
 			ctx,
-			"INSERT INTO users(email, password) values($1, $2) RETURNING id",
-			login, hashedPassword,
+			"INSERT INTO orders(id, user_id) values($1, $2)",
+			orderId, user.ID,
 		)
-		err := row.Scan(&user.ID)
 
-		// ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)
+		// ERROR: duplicate key value violates unique constraint (SQLSTATE 23505)
 		var pgErr *pgconn.PgError
 		if err != nil && errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return ErrUniqConstrain
+			count := 0
+			row := r.db.QueryRowContext(ctx, "SELECT count(id) FROM orders WHERE id=$1 AND user_id=$2", orderId, user.ID)
+			err := row.Scan(&count)
+			if err != nil {
+				return fmt.Errorf("create order error: %w", err)
+			}
+			if count == 0 {
+				return ErrOrderAlreadyRegisteredByOther
+			}
+			return ErrOrderAlreadyRegisteredByUser
 		}
 		if err != nil {
-			return fmt.Errorf("insert to db user: %w", err)
+			return err
 		}
-		logger.Log.Debug(fmt.Sprintf("CreateUser %s -> %d", login, user.ID))
 		return nil
 	}
 
 	err := r.retrier.Do(ctx, fun, recoverableErrors...)
 	if err != nil {
-		return nil, fmt.Errorf("error creating user: %w", err)
+		return fmt.Errorf("register order error: %w", err)
 	}
-	return user, nil
+	return nil
 }
 
-func (r *UserRepo) GetUser(ctx context.Context, login string) (*model.User, error) {
+func (r *OrderRepo) ListOrders(ctx context.Context) (*[]model.Order, error) {
 	user := &model.User{}
 
 	fun := func() error {
-		row := r.db.QueryRowContext(ctx, "SELECT id, email, password FROM users WHERE email=$1", login)
+		row := r.db.QueryRowContext(ctx, "SELECT id, email, password FROM users WHERE email=$1", 123)
 		err := row.Scan(&user.ID, &user.Login, &user.PasswordHash)
 		if errors.Is(err, sql.ErrNoRows) {
 			return coreErrors.ErrNotFound404
@@ -83,5 +89,5 @@ func (r *UserRepo) GetUser(ctx context.Context, login string) (*model.User, erro
 	if err != nil {
 		return nil, fmt.Errorf("error reading user: %w", err)
 	}
-	return user, nil
+	return nil, nil
 }

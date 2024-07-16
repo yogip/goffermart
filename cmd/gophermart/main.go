@@ -53,11 +53,14 @@ func run(ctx context.Context, cfg *config.Config) error {
 	}
 	defer db.Close()
 
-	repo := repo.NewUserRepo(db)
+	repoUser := repo.NewUserRepo(db)
+	repoOrders := repo.NewOrderRepo(db)
 
-	iamService := service.NewIAMService(repo, &cfg.Server)
+	iamService := service.NewIAMService(repoUser, &cfg.Server)
+	ordersService := service.NewOrdersService(repoOrders, &cfg.Server)
 	logger.Log.Info("Service initialized")
-	api := rest.NewAPI(cfg, iamService)
+
+	api := rest.NewAPI(cfg, iamService, ordersService)
 
 	// https://github.com/gin-gonic/gin/blob/master/docs/doc.md#manually
 	// Initializing the server in a goroutine so that

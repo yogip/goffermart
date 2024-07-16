@@ -18,10 +18,10 @@ type API struct {
 	srv *http.Server
 }
 
-func NewAPI(cfg *config.Config, iamService *service.IAM) *API {
+func NewAPI(cfg *config.Config, iamService *service.IAM, ordersService *service.OrderService) *API {
 	iamHandler := handlers.NewIAMHandler(iamService)
 	balanceHandler := handlers.NewBalanceHandler(iamService)
-	ordersHandler := handlers.NewOrdersHandler(iamService)
+	ordersHandler := handlers.NewOrdersHandler(ordersService)
 	withdrawalsHandler := handlers.NewWithdrawalsHandler(iamService)
 
 	router := gin.Default()
@@ -36,21 +36,21 @@ func NewAPI(cfg *config.Config, iamService *service.IAM) *API {
 	// Route group - /api/user/orders
 	ordersRoute := router.Group("/api/user/orders", authMiddleware.AuthRequired())
 	{
-		ordersRoute.POST("/", ordersHandler.RegisterOrder) // register an order
-		ordersRoute.GET("/", ordersHandler.GetOrdersList)  // orders list
+		ordersRoute.POST("", ordersHandler.RegisterOrder) // register an order
+		ordersRoute.GET("", ordersHandler.GetOrderList)   // orders list
 	}
 
 	// Route group - /api/user/balance
 	balanceRoute := router.Group("/api/user/balance", authMiddleware.AuthRequired())
 	{
 		balanceRoute.GET("/", balanceHandler.GetCurrentBalance)        // get current balance
-		balanceRoute.POST("/withdraw", balanceHandler.WithdrawBonuces) // deduct bonuses from your balance
+		balanceRoute.POST("/withdraw", balanceHandler.WithdrawBonuces) // deduct bonuses from balance
 	}
 
 	// Route group - /api/user/withdrawals
 	withdrawalsRoute := router.Group("/api/user/withdrawals", authMiddleware.AuthRequired())
 	{
-		withdrawalsRoute.GET("/", withdrawalsHandler.GetWithdrawalsList) // withdrawals list
+		withdrawalsRoute.GET("/", withdrawalsHandler.GetWithdrawalList) // withdrawal list history
 	}
 
 	srv := &http.Server{Handler: router}
