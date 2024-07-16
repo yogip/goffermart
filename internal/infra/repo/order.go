@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	coreErrors "goffermart/internal/core/errors"
 	"goffermart/internal/core/model"
 	"goffermart/internal/logger"
 	"goffermart/internal/retrier"
@@ -74,20 +73,39 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, orderId int64, user *model.
 	return nil
 }
 
-func (r *OrderRepo) ListOrders(ctx context.Context) (*[]model.Order, error) {
-	user := &model.User{}
+func (r *OrderRepo) ListOrders(ctx context.Context, user *model.User) (*[]model.Order, error) {
+	orders := []model.Order{}
 
 	fun := func() error {
-		row := r.db.QueryRowContext(ctx, "SELECT id, email, password FROM users WHERE email=$1", 123)
-		err := row.Scan(&user.ID, &user.Login, &user.PasswordHash)
-		if errors.Is(err, sql.ErrNoRows) {
-			return coreErrors.ErrNotFound404
+		rows, err := r.db.QueryContext(
+			ctx,
+			"SELECT id, status, accrual, created_at FROM orders WHERE user_id=$1 ORDER BY created_at DESC",
+			user.ID,
+		)
+		if err != nil {
+			return fmt.Errorf("selecting orders error: %w", err)
 		}
-		return err
+
+		for rows.Next() {
+			var o model.Order
+
+			err = rows.Scan(&o.ID, &o.Status, &o.Accrual, &o.CreatedAt)
+			if err != nil {
+				return fmt.Errorf("read order error: %w", err)
+			}
+
+			orders = append(orders, o)
+		}
+
+		err = rows.Err()
+		if err != nil {
+			return fmt.Errorf("reading orders error: %w", err)
+		}
+		return nil
 	}
 	err := r.retrier.Do(ctx, fun, recoverableErrors...)
 	if err != nil {
 		return nil, fmt.Errorf("error reading user: %w", err)
 	}
-	return nil, nil
+	return &orders, nil
 }
