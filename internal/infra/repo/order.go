@@ -48,19 +48,19 @@ func (r *OrderRepo) Tx(ctx context.Context) (*sql.Tx, error) {
 	return tx, nil
 }
 
-func (r *OrderRepo) CreateOrder(ctx context.Context, orderId int64, user *model.User) error {
+func (r *OrderRepo) CreateOrder(ctx context.Context, orderID int64, user *model.User) error {
 	fun := func() error {
 		_, err := r.db.ExecContext(
 			ctx,
 			"INSERT INTO orders(id, user_id) values($1, $2)",
-			orderId, user.ID,
+			orderID, user.ID,
 		)
 
 		// ERROR: duplicate key value violates unique constraint (SQLSTATE 23505)
 		var pgErr *pgconn.PgError
 		if err != nil && errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			count := 0
-			row := r.db.QueryRowContext(ctx, "SELECT count(id) FROM orders WHERE id=$1 AND user_id=$2", orderId, user.ID)
+			row := r.db.QueryRowContext(ctx, "SELECT count(id) FROM orders WHERE id=$1 AND user_id=$2", orderID, user.ID)
 			err := row.Scan(&count)
 			if err != nil {
 				return fmt.Errorf("create order error: %w", err)

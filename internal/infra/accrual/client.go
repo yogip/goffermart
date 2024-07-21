@@ -39,7 +39,7 @@ func (s *StopLimiter) StopUntil(interval time.Duration) {
 }
 
 type AccrualClient struct {
-	baseUrl string
+	baseURL string
 	config  *config.Config
 	client  *resty.Client
 }
@@ -51,14 +51,14 @@ func NewAccrualClient(config *config.Config) *AccrualClient {
 		SetRetryMaxWaitTime(5 * time.Second)
 
 	return &AccrualClient{
-		baseUrl: config.Accrual.Address,
+		baseURL: config.Accrual.Address,
 		config:  config,
 		client:  client,
 	}
 }
 
-func (c *AccrualClient) GetOrderAccrual(ctx context.Context, orderId int64) (*Accrual, error) {
-	url := fmt.Sprintf("%s/api/orders/%d", c.baseUrl, orderId)
+func (c *AccrualClient) GetOrderAccrual(ctx context.Context, orderID int64) (*Accrual, error) {
+	url := fmt.Sprintf("%s/api/orders/%d", c.baseURL, orderID)
 	output := &Accrual{}
 
 	resp, err := c.client.R().
@@ -79,7 +79,7 @@ func (c *AccrualClient) GetOrderAccrual(ctx context.Context, orderId int64) (*Ac
 		if err != nil {
 			logger.Log.Error(
 				"Could not parse Retry-After for GetOrderAccrual",
-				zap.Int64("OrderId", orderId),
+				zap.Int64("OrderId", orderID),
 				zap.String("RawRetryAfter", raw),
 			)
 			ra = 60

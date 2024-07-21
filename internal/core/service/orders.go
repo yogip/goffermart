@@ -19,15 +19,24 @@ func NewOrdersService(repo *repo.OrderRepo, cfg *config.ServerConfig) *OrderServ
 }
 
 // create new order in DB with default status
-func (o *OrderService) CreateOrder(ctx *gin.Context, orderId int64, user *model.User) error {
-	return o.repo.CreateOrder(ctx, orderId, user)
+func (o *OrderService) CreateOrder(ctx *gin.Context, orderID int64, user *model.User) error {
+	return o.repo.CreateOrder(ctx, orderID, user)
 }
 
 // load orders from DB
-func (o *OrderService) ListOrders(ctx *gin.Context, user *model.User) (*[]model.Order, error) {
+func (o *OrderService) ListOrders(ctx *gin.Context, user *model.User) (*[]model.OrderResp, error) {
 	orders, err := o.repo.ListOrders(ctx, user)
 	if err != nil {
-		return orders, fmt.Errorf("reading orders error: %w", err)
+		return nil, fmt.Errorf("reading orders error: %w", err)
 	}
-	return orders, nil
+	orderResp := []model.OrderResp{}
+	for _, o := range *orders {
+		orderResp = append(orderResp, model.OrderResp{
+			ID:        string(o.ID),
+			Status:    o.Status,
+			Accrual:   o.Accrual,
+			CreatedAt: *o.CreatedAt,
+		})
+	}
+	return &orderResp, nil
 }

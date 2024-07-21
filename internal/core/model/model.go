@@ -30,6 +30,13 @@ type Order struct {
 	CreatedAt *time.Time  `json:"uploaded_at"`
 }
 
+type OrderResp struct {
+	ID        string      `json:"number"`
+	Status    OrderStatus `json:"status"`
+	Accrual   float64     `json:"accrual"`
+	CreatedAt time.Time   `json:"uploaded_at"`
+}
+
 type Balance struct {
 	Current   float64 `json:"current"`
 	Withdrawn float64 `json:"withdrawn"`
