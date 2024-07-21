@@ -32,7 +32,7 @@ func (o *OrderService) ListOrders(ctx *gin.Context, user *model.User) (*[]model.
 	orderResp := []model.OrderResp{}
 	for _, o := range *orders {
 		orderResp = append(orderResp, model.OrderResp{
-			ID:        string(o.ID),
+			ID:        fmt.Sprint(o.ID),
 			Status:    o.Status,
 			Accrual:   o.Accrual,
 			CreatedAt: *o.CreatedAt,
