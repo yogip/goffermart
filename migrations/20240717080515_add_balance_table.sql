@@ -1,10 +1,10 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS balance(
-    id         BIGINT PRIMARY KEY,
-    user_id    BIGINT REFERENCES users (id),
-    current    BIGINT NOT NULL DEFAULT 0,
-    withdrawn  BIGINT NOT NULL DEFAULT 0
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT REFERENCES users (id) UNIQUE,
+    current    NUMERIC(8, 2) NOT NULL DEFAULT 0,
+    withdrawn  NUMERIC(8, 2) NOT NULL DEFAULT 0
 );
 -- +goose StatementEnd
 

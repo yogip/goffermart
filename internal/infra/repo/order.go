@@ -13,6 +13,7 @@ import (
 	"goffermart/internal/retrier"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"go.uber.org/zap"
 )
 
 type OrderRepo struct {
@@ -37,6 +38,14 @@ func NewOrderRepo(db *sql.DB) *OrderRepo {
 
 	logger.Log.Info("UserRepo initialized")
 	return repo
+}
+
+func (r *OrderRepo) Tx(ctx context.Context) (*sql.Tx, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 func (r *OrderRepo) CreateOrder(ctx context.Context, orderId int64, user *model.User) error {
@@ -74,11 +83,9 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, orderId int64, user *model.
 	return nil
 }
 
-func (r *OrderRepo) UpdateAcrual(ctx context.Context, accrual *accrual.Accrual) error {
-	// update status
-
+func (r *OrderRepo) UpdateAcrual(ctx context.Context, tx *sql.Tx, accrual *accrual.Accrual) error {
 	fun := func() error {
-		_, err := r.db.ExecContext(
+		_, err := tx.ExecContext(
 			ctx,
 			"UPDATE orders SET status=$2 WHERE id=$",
 			accrual.OrderID, accrual.Status,
@@ -101,7 +108,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, user *model.User) (*[]model.
 	orders := []model.Order{}
 
 	fun := func() error {
-		query := "SELECT id, status, accrual, created_at FROM orders WHERE user_id=$1 ORDER BY created_at DESC"
+		query := "SELECT id, user_id, status, accrual, created_at FROM orders WHERE user_id=$1 ORDER BY created_at"
 
 		rows, err := r.db.QueryContext(ctx, query, user.ID)
 		if err != nil {
@@ -111,7 +118,7 @@ func (r *OrderRepo) ListOrders(ctx context.Context, user *model.User) (*[]model.
 		for rows.Next() {
 			var o model.Order
 
-			err = rows.Scan(&o.ID, &o.Status, &o.Accrual, &o.CreatedAt)
+			err = rows.Scan(&o.ID, &o.UserID, &o.Status, &o.Accrual, &o.CreatedAt)
 			if err != nil {
 				return fmt.Errorf("read order error: %w", err)
 			}
@@ -136,7 +143,7 @@ func (r *OrderRepo) ListOrdersForProcessing(ctx context.Context) (*[]model.Order
 	orders := []model.Order{}
 
 	fun := func() error {
-		query := "SELECT id, status, accrual, created_at FROM orders WHERE status NOT IN ('INVALID', 'PROCESSED')"
+		query := "SELECT id, user_id, status, accrual, created_at FROM orders WHERE status NOT IN ('INVALID', 'PROCESSED')"
 
 		rows, err := r.db.QueryContext(ctx, query)
 		if err != nil {
@@ -146,11 +153,11 @@ func (r *OrderRepo) ListOrdersForProcessing(ctx context.Context) (*[]model.Order
 		for rows.Next() {
 			var o model.Order
 
-			err = rows.Scan(&o.ID, &o.Status, &o.Accrual, &o.CreatedAt)
+			err = rows.Scan(&o.ID, &o.UserID, &o.Status, &o.Accrual, &o.CreatedAt)
 			if err != nil {
 				return fmt.Errorf("read order error: %w", err)
 			}
-
+			logger.Log.Debug("ListOrdersForProcessing", zap.Int64("OrderId", o.ID))
 			orders = append(orders, o)
 		}
 
@@ -164,5 +171,6 @@ func (r *OrderRepo) ListOrdersForProcessing(ctx context.Context) (*[]model.Order
 	if err != nil {
 		return nil, fmt.Errorf("error reading user: %w", err)
 	}
+
 	return &orders, nil
 }

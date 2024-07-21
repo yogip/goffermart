@@ -21,3 +21,11 @@ func NewBalanceService(repo *repo.BalanceRepo, cfg *config.ServerConfig) *Balanc
 func (o *BalanceService) GetBalance(ctx *gin.Context, user *model.User) (*model.Balance, error) {
 	return o.repo.GetBalance(ctx, user)
 }
+
+func (o *BalanceService) ProcessWithdrawl(ctx *gin.Context, user *model.User, req *model.WithdrawRequest) error {
+	return o.repo.ProcessWithdrawl(ctx, user, req)
+}
+
+func (o *BalanceService) ListWithdrawls(ctx *gin.Context, user *model.User) (*[]model.Withdrawal, error) {
+	return o.repo.ListWithdrawls(ctx, user)
+}

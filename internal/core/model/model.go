@@ -23,13 +23,25 @@ const (
 )
 
 type Order struct {
-	ID        int64       `json:"number"`
+	ID        int64 `json:"number"`
+	UserID    int64
 	Status    OrderStatus `json:"status"`
-	Accrual   int32       `json:"accrual"`
+	Accrual   float64     `json:"accrual"`
 	CreatedAt *time.Time  `json:"uploaded_at"`
 }
 
 type Balance struct {
-	Current   int64 `json:"current"`
-	Withdrawn int64 `json:"withdrawn"`
+	Current   float64 `json:"current"`
+	Withdrawn float64 `json:"withdrawn"`
+}
+
+type WithdrawRequest struct {
+	OrderID int64   `json:"order"`
+	Sum     float64 `json:"sum"`
+}
+
+type Withdrawal struct {
+	OrderID     int64     `json:"order"`
+	Sum         float64   `json:"sum"`
+	ProcessedAt time.Time `json:"processed_at"`
 }

@@ -1,10 +1,11 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS withdrawals(
-    id         BIGINT PRIMARY KEY,
-    order       BIGINT REFERENCES users (id),
-    sum         BIGINT NOT NULL DEFAULT 0,
-    processed_at  BIGINT NOT NULL DEFAULT 0
+    id            BIGSERIAL PRIMARY KEY,
+    user_id       BIGINT REFERENCES users (id),
+    order_id      BIGINT REFERENCES orders(id) UNIQUE,
+    sum           BIGINT NOT NULL DEFAULT 0,
+    processed_at  TIMESTAMP NOT NULL DEFAULT now()
 );
 -- +goose StatementEnd
 

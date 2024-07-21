@@ -25,9 +25,9 @@ func NewAPI(
 	balanceService *service.BalanceService,
 ) *API {
 	iamHandler := handlers.NewIAMHandler(iamService)
-	balanceHandler := handlers.NewBalanceHandler(balanceService)
+	balanceHandler := handlers.NewBalanceHandler(balanceService, ordersService)
 	ordersHandler := handlers.NewOrdersHandler(ordersService)
-	withdrawalsHandler := handlers.NewWithdrawalsHandler(iamService)
+	withdrawalsHandler := handlers.NewWithdrawalsHandler(balanceService)
 
 	router := gin.Default()
 	router.Use(middlewares.GzipDecompressMiddleware())
@@ -49,7 +49,7 @@ func NewAPI(
 	balanceRoute := router.Group("/api/user/balance", authMiddleware.AuthRequired())
 	{
 		balanceRoute.GET("", balanceHandler.GetCurrentBalance)         // get current balance
-		balanceRoute.POST("/withdraw", balanceHandler.WithdrawBonuces) // deduct bonuses from balance
+		balanceRoute.POST("/withdraw", balanceHandler.WithdrawBonuces) // withdraw bonuses from balance
 	}
 
 	// Route group - /api/user/withdrawals

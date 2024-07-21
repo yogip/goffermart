@@ -51,7 +51,7 @@ func NewAccrualClient(config *config.Config) *AccrualClient {
 		SetRetryMaxWaitTime(5 * time.Second)
 
 	return &AccrualClient{
-		baseUrl: config.Accrual.Addres,
+		baseUrl: config.Accrual.Address,
 		config:  config,
 		client:  client,
 	}
@@ -66,6 +66,7 @@ func (c *AccrualClient) GetOrderAccrual(ctx context.Context, orderId int64) (*Ac
 		SetContext(ctx).
 		SetResult(output).
 		Get(url)
+
 	if err != nil {
 		return nil, fmt.Errorf("getting order accrual request error: %w", err)
 	}

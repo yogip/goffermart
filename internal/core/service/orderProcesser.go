@@ -15,7 +15,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func consumer(ctx context.Context, ordersCh chan *model.Order, repo *repo.OrderRepo, client *accrual.AccrualClient, limiter *helpers.StopLimiter) {
+func consumer(
+	ctx context.Context,
+	ordersCh chan model.Order,
+	orderRepo *repo.OrderRepo,
+	balanceRepo *repo.BalanceRepo,
+	client *accrual.AccrualClient,
+	limiter *helpers.StopLimiter,
+) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -23,29 +30,60 @@ func consumer(ctx context.Context, ordersCh chan *model.Order, repo *repo.OrderR
 			return
 		case order := <-ordersCh:
 			limiter.EnsureLimit()
-			logger.Log.Debug("Go order for processing", zap.Int64("OrderID", order.ID))
-			actual, err := client.GetOrderAccrual(ctx, order.ID)
+
+			log := logger.Log.With(
+				zap.Int64("OrderID", order.ID),
+				zap.Int64("UserID", order.UserID),
+				zap.String("StatusOld", string(order.Status)),
+			)
+			log.Debug("Got order for processing")
+
+			acrual, err := client.GetOrderAccrual(ctx, order.ID)
+			log.Debug("Got Acrual resp")
+
 			var errTM *accrual.ErrorTooManyRequests
 			if errors.As(err, &errTM) {
 				limiter.StopUntil(errTM.RetryAfter)
 			}
 			if err != nil {
-				logger.Log.Warn("Could not get Accrual information. Skip this order, and continue", zap.Error(err))
+				log.Warn("Could not get Accrual information. Skip this order and continue", zap.Error(err))
 				continue
 			}
-
-			// order.Status = model.OrderStatus(stat.Status)
-			// order.Accrual = actual.Accrual
-
-			err = repo.UpdateAcrual(ctx, actual)
-			if err != nil {
-				logger.Log.Warn("Could not update Accrual and status. Skip this order, and continue", zap.Error(err))
+			if acrual == nil {
+				log.Warn("There is no Accrual information. Skip this order and continue")
+				continue
 			}
+			log = logger.Log.With(
+				zap.Float64("Accrual", acrual.Accrual),
+				zap.String("StatusNew", string(acrual.Status)),
+			)
+
+			// update order status and sum
+			tx, err := orderRepo.Tx(ctx)
+			if err != nil {
+				log.Warn("Could not start transaction. Skip this order and continue", zap.Error(err))
+				continue
+			}
+			err = orderRepo.UpdateAcrual(ctx, tx, acrual)
+			if err != nil {
+				tx.Rollback()
+				log.Warn("Could not UpdateAcrual. Skip this order, and continue", zap.Error(err))
+			}
+
+			// increse balance
+			err = balanceRepo.UpdateBalance(ctx, tx, order.UserID, acrual)
+			if err != nil {
+				tx.Rollback()
+				log.Warn("Could not UpdateBalance. Skip this order and continue", zap.Error(err))
+			}
+
+			tx.Commit()
+			// finish order processing
 		}
 	}
 }
 
-func producer(ctx context.Context, ordersCh chan *model.Order, repo *repo.OrderRepo) {
+func producer(ctx context.Context, ordersCh chan model.Order, repo *repo.OrderRepo) {
 	orders, err := repo.ListOrdersForProcessing(ctx)
 	if err != nil {
 		logger.Log.Error("Could not process orders. Skip and try later.", zap.Error(err))
@@ -55,11 +93,17 @@ func producer(ctx context.Context, ordersCh chan *model.Order, repo *repo.OrderR
 			logger.Log.Info("Finish to produce tasks")
 			return
 		}
-		ordersCh <- &o
+		logger.Log.Debug("Add order to processing queue", zap.Int64("OrderId", o.ID))
+		ordersCh <- o
 	}
 }
 
-func RunProcessing(ctx context.Context, cfg *config.Config, repo *repo.OrderRepo) {
+func RunProcessing(
+	ctx context.Context,
+	cfg *config.Config,
+	orderRepo *repo.OrderRepo,
+	balanceRepo *repo.BalanceRepo,
+) {
 	logger.Log.Info("Start order processing worker")
 
 	intervalTicker := time.NewTicker(cfg.Accrual.Interval)
@@ -68,9 +112,9 @@ func RunProcessing(ctx context.Context, cfg *config.Config, repo *repo.OrderRepo
 	accrual := accrual.NewAccrualClient(cfg)
 	limiter := helpers.NewStopLimiter()
 
-	ordersCh := make(chan *model.Order, cfg.Accrual.WorkersCount)
+	ordersCh := make(chan model.Order, cfg.Accrual.WorkersCount)
 	for i := 0; i < cfg.Accrual.WorkersCount; i++ {
-		go consumer(ctx, ordersCh, repo, accrual, limiter)
+		go consumer(ctx, ordersCh, orderRepo, balanceRepo, accrual, limiter)
 	}
 
 	for {
@@ -80,7 +124,7 @@ func RunProcessing(ctx context.Context, cfg *config.Config, repo *repo.OrderRepo
 			close(ordersCh)
 			return
 		case <-intervalTicker.C:
-			producer(ctx, ordersCh, repo)
+			producer(ctx, ordersCh, orderRepo)
 		}
 	}
 }

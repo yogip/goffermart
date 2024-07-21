@@ -6,7 +6,7 @@ test:
 	go test ./...
 
 server:
-	go run cmd/gophermart/main.go -l debug -d "host=localhost port=25432 user=username password=password dbname=gophermart sslmode=disable"
+	go run cmd/gophermart/main.go -l debug -r http://localhost:8090 -d "host=localhost port=25432 user=username password=password dbname=gophermart sslmode=disable"
 
 migrate-new:
 	goose create $@ sql

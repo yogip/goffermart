@@ -16,7 +16,7 @@ type ServerConfig struct {
 }
 
 type AccrualConfig struct {
-	Addres       string        `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"http://accrual:8090"`
+	Address      string        `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"http://accrual:8090"`
 	Interval     time.Duration `env:"ACCRUAL_PROCESSING_INTERVAL" envDefault:"5s"`
 	WorkersCount int           `env:"WORKERS_COUNT" envDefault:"3"`
 }
@@ -33,19 +33,25 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
-	if value := flag.String("a", "", "Address and port to run server"); *value != "" {
-		cfg.Server.Address = *value
+	var serverAddress, databaseDSN, logLevel, address string
+	flag.StringVar(&serverAddress, "a", "", "Address and port to run server")
+	flag.StringVar(&databaseDSN, "d", "", "Database URI")
+	flag.StringVar(&logLevel, "l", "", "Log levle: debug, info, warn, error, panic, fatal")
+	flag.StringVar(&address, "r", "", "Accrual system addres")
+	flag.Parse()
+
+	if serverAddress != "" {
+		cfg.Server.Address = serverAddress
 	}
-	if value := flag.String("d", "", "Database URI"); *value != "" {
-		cfg.Server.DatabaseDSN = *value
+	if databaseDSN != "" {
+		cfg.Server.DatabaseDSN = databaseDSN
 	}
-	if value := flag.String("l", "", "Log levle: debug, info, warn, error, panic, fatal"); *value != "" {
-		cfg.Server.LogLevel = *value
+	if logLevel != "" {
+		cfg.Server.LogLevel = logLevel
 	}
-	if value := flag.String("r", "", "Accrual system addres"); *value != "" {
-		cfg.Accrual.Addres = *value
+	if address != "" {
+		cfg.Accrual.Address = address
 	}
-	// flag.Parse()  // todo ????
 
 	return &cfg, nil
 }

@@ -62,7 +62,7 @@ func run(ctx context.Context, cfg *config.Config) error {
 	balanceService := service.NewBalanceService(repoBalance, &cfg.Server)
 	logger.Log.Info("Service initialized")
 
-	go service.RunProcessing(ctx, cfg, repoOrders)
+	go service.RunProcessing(ctx, cfg, repoOrders, repoBalance)
 
 	api := rest.NewAPI(cfg, iamService, ordersService, balanceService)
 
