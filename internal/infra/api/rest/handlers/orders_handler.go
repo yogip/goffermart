@@ -15,6 +15,7 @@ import (
 )
 
 type OrdersHandler struct {
+	BaseHandler
 	service *service.OrderService
 }
 
@@ -23,6 +24,15 @@ func NewOrdersHandler(service *service.OrderService) *OrdersHandler {
 }
 
 func (h *OrdersHandler) RegisterOrder(ctx *gin.Context) {
+	user, err := h.getUser(ctx)
+	if err != nil {
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{"status": false, "message": err},
+		)
+		return
+	}
+
 	body, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		logger.Log.Warn("Error reading body for RegisterOrder route", zap.Error(err))
@@ -44,10 +54,12 @@ func (h *OrdersHandler) RegisterOrder(ctx *gin.Context) {
 
 	log := logger.Log.With(
 		zap.Int64("OrderId", orderId),
+		zap.Int64("UserID", user.ID),
+		zap.String("Login", user.Login),
 	)
 	log.Debug("Got Order to registration")
 
-	err = h.service.CreateOrder(ctx, orderId)
+	err = h.service.CreateOrder(ctx, orderId, user)
 	logger.Log.Debug(fmt.Sprintf("Order registration result: %v", err))
 
 	// successfull requests
@@ -81,27 +93,37 @@ func (h *OrdersHandler) RegisterOrder(ctx *gin.Context) {
 }
 
 func (h *OrdersHandler) GetOrderList(ctx *gin.Context) {
+	user, err := h.getUser(ctx)
+	if err != nil {
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{"status": false, "message": err},
+		)
+		return
+	}
+
 	log := logger.Log.With(
-		zap.String("tmpl", "---"),
+		zap.Int64("UserID", user.ID),
+		zap.String("Login", user.Login),
 	)
 
-	log.Debug("GetOrdersList handler")
-	//   [
-	// 	{
-	// 		"number": "9278923470",
-	// 		"status": "PROCESSED",
-	// 		"accrual": 500,
-	// 		"uploaded_at": "2020-12-10T15:15:45+03:00"
-	// 	},
-	// 	{
-	// 		"number": "12345678903",
-	// 		"status": "PROCESSING",
-	// 		"uploaded_at": "2020-12-10T15:12:01+03:00"
-	// 	},
-	// 	{
-	// 		"number": "346436439",
-	// 		"status": "INVALID",
-	// 		"uploaded_at": "2020-12-09T16:09:53+03:00"
-	// 	}
-	// ]
+	orders, err := h.service.ListOrders(ctx, user)
+	if err != nil {
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{"status": false, "message": err},
+		)
+		return
+	}
+	log.Debug("Orders were loaded", zap.Int("OrdersCount", len(*orders)))
+
+	if len(*orders) == 0 {
+		ctx.String(http.StatusNoContent, "")
+		return
+	}
+
+	ctx.JSON(
+		http.StatusOK,
+		orders,
+	)
 }

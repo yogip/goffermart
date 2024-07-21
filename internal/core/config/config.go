@@ -16,7 +16,9 @@ type ServerConfig struct {
 }
 
 type AccrualConfig struct {
-	Addres string `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"accrual:8090"`
+	Addres       string        `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"http://accrual:8090"`
+	Interval     time.Duration `env:"ACCRUAL_PROCESSING_INTERVAL" envDefault:"5s"`
+	WorkersCount int           `env:"WORKERS_COUNT" envDefault:"3"`
 }
 
 type Config struct {

@@ -1,7 +1,7 @@
-FROM ubuntu:latest
+FROM ubuntu:latest 
 
 RUN mkdir /app
 COPY cmd/accrual/accrual_linux_amd64 /app/accrual_linux_amd64
 
 EXPOSE 8090
-ENTRYPOINT ["/app/accrual_linux_amd64"]
+ENTRYPOINT ["/app/accrual_darwin_arm64"]

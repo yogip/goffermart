@@ -55,12 +55,16 @@ func run(ctx context.Context, cfg *config.Config) error {
 
 	repoUser := repo.NewUserRepo(db)
 	repoOrders := repo.NewOrderRepo(db)
+	repoBalance := repo.NewBalanceRepo(db)
 
 	iamService := service.NewIAMService(repoUser, &cfg.Server)
 	ordersService := service.NewOrdersService(repoOrders, &cfg.Server)
+	balanceService := service.NewBalanceService(repoBalance, &cfg.Server)
 	logger.Log.Info("Service initialized")
 
-	api := rest.NewAPI(cfg, iamService, ordersService)
+	go service.RunProcessing(ctx, cfg, repoOrders)
+
+	api := rest.NewAPI(cfg, iamService, ordersService, balanceService)
 
 	// https://github.com/gin-gonic/gin/blob/master/docs/doc.md#manually
 	// Initializing the server in a goroutine so that

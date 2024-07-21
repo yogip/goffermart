@@ -1,7 +1,7 @@
 package service
 
 import (
-	"errors"
+	"fmt"
 	"goffermart/internal/core/config"
 	"goffermart/internal/core/model"
 	"goffermart/internal/infra/repo"
@@ -19,16 +19,15 @@ func NewOrdersService(repo *repo.OrderRepo, cfg *config.ServerConfig) *OrderServ
 }
 
 // create new order in DB with default status
-func (o *OrderService) CreateOrder(ctx *gin.Context, orderId int64) error {
-	u, ok := ctx.Get("User")
-	if !ok {
-		return errors.New("context must has a user")
-	}
-	user, ok := u.(*model.User)
-	if !ok {
-		return errors.New("context must contains valid user object")
-	}
+func (o *OrderService) CreateOrder(ctx *gin.Context, orderId int64, user *model.User) error {
+	return o.repo.CreateOrder(ctx, orderId, user)
+}
 
-	err := o.repo.CreateOrder(ctx, orderId, user)
-	return err
+// load orders from DB
+func (o *OrderService) ListOrders(ctx *gin.Context, user *model.User) (*[]model.Order, error) {
+	orders, err := o.repo.ListOrders(ctx, user)
+	if err != nil {
+		return orders, fmt.Errorf("reading orders error: %w", err)
+	}
+	return orders, nil
 }

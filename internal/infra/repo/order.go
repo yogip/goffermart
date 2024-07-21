@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"goffermart/internal/core/model"
+	"goffermart/internal/infra/accrual"
 	"goffermart/internal/logger"
 	"goffermart/internal/retrier"
 
@@ -73,15 +74,71 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, orderId int64, user *model.
 	return nil
 }
 
+func (r *OrderRepo) UpdateAcrual(ctx context.Context, accrual *accrual.Accrual) error {
+	// update status
+
+	fun := func() error {
+		_, err := r.db.ExecContext(
+			ctx,
+			"UPDATE orders SET status=$2 WHERE id=$",
+			accrual.OrderID, accrual.Status,
+		)
+
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	err := r.retrier.Do(ctx, fun, recoverableErrors...)
+	if err != nil {
+		return fmt.Errorf("register order error: %w", err)
+	}
+	return nil
+}
+
 func (r *OrderRepo) ListOrders(ctx context.Context, user *model.User) (*[]model.Order, error) {
 	orders := []model.Order{}
 
 	fun := func() error {
-		rows, err := r.db.QueryContext(
-			ctx,
-			"SELECT id, status, accrual, created_at FROM orders WHERE user_id=$1 ORDER BY created_at DESC",
-			user.ID,
-		)
+		query := "SELECT id, status, accrual, created_at FROM orders WHERE user_id=$1 ORDER BY created_at DESC"
+
+		rows, err := r.db.QueryContext(ctx, query, user.ID)
+		if err != nil {
+			return fmt.Errorf("selecting orders error: %w", err)
+		}
+
+		for rows.Next() {
+			var o model.Order
+
+			err = rows.Scan(&o.ID, &o.Status, &o.Accrual, &o.CreatedAt)
+			if err != nil {
+				return fmt.Errorf("read order error: %w", err)
+			}
+
+			orders = append(orders, o)
+		}
+
+		err = rows.Err()
+		if err != nil {
+			return fmt.Errorf("reading orders error: %w", err)
+		}
+		return nil
+	}
+	err := r.retrier.Do(ctx, fun, recoverableErrors...)
+	if err != nil {
+		return nil, fmt.Errorf("error reading user: %w", err)
+	}
+	return &orders, nil
+}
+
+func (r *OrderRepo) ListOrdersForProcessing(ctx context.Context) (*[]model.Order, error) {
+	orders := []model.Order{}
+
+	fun := func() error {
+		query := "SELECT id, status, accrual, created_at FROM orders WHERE status NOT IN ('INVALID', 'PROCESSED')"
+
+		rows, err := r.db.QueryContext(ctx, query)
 		if err != nil {
 			return fmt.Errorf("selecting orders error: %w", err)
 		}

@@ -10,23 +10,38 @@ import (
 )
 
 type BalanceHandler struct {
-	service *service.IAM
+	BaseHandler
+	service *service.BalanceService
 }
 
-func NewBalanceHandler(service *service.IAM) *BalanceHandler {
+func NewBalanceHandler(service *service.BalanceService) *BalanceHandler {
 	return &BalanceHandler{service: service}
 }
 
 func (h *BalanceHandler) GetCurrentBalance(ctx *gin.Context) {
-	log := logger.Log.With(
-		zap.String("tmpl", "---"),
-	)
+	user, err := h.getUser(ctx)
+	if err != nil {
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{"status": false, "message": err},
+		)
+		return
+	}
 
-	log.Debug("GetCurrentBalance handler")
-	ctx.JSON(
-		http.StatusOK,
-		gin.H{"current": 500.5, "withdrawn": 42},
+	log := logger.Log.With(
+		zap.Int64("UserID", user.ID),
+		zap.String("Login", user.Login),
 	)
+	log.Debug("GetCurrentBalance handler")
+
+	balance, err := h.service.GetBalance(ctx, user)
+	if err != nil {
+		ctx.JSON(
+			http.StatusInternalServerError,
+			gin.H{"status": false, "message": err},
+		)
+	}
+	ctx.JSON(http.StatusOK, balance)
 }
 
 func (h *BalanceHandler) WithdrawBonuces(ctx *gin.Context) {

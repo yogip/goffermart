@@ -18,9 +18,14 @@ type API struct {
 	srv *http.Server
 }
 
-func NewAPI(cfg *config.Config, iamService *service.IAM, ordersService *service.OrderService) *API {
+func NewAPI(
+	cfg *config.Config,
+	iamService *service.IAM,
+	ordersService *service.OrderService,
+	balanceService *service.BalanceService,
+) *API {
 	iamHandler := handlers.NewIAMHandler(iamService)
-	balanceHandler := handlers.NewBalanceHandler(iamService)
+	balanceHandler := handlers.NewBalanceHandler(balanceService)
 	ordersHandler := handlers.NewOrdersHandler(ordersService)
 	withdrawalsHandler := handlers.NewWithdrawalsHandler(iamService)
 
@@ -43,14 +48,14 @@ func NewAPI(cfg *config.Config, iamService *service.IAM, ordersService *service.
 	// Route group - /api/user/balance
 	balanceRoute := router.Group("/api/user/balance", authMiddleware.AuthRequired())
 	{
-		balanceRoute.GET("/", balanceHandler.GetCurrentBalance)        // get current balance
+		balanceRoute.GET("", balanceHandler.GetCurrentBalance)         // get current balance
 		balanceRoute.POST("/withdraw", balanceHandler.WithdrawBonuces) // deduct bonuses from balance
 	}
 
 	// Route group - /api/user/withdrawals
 	withdrawalsRoute := router.Group("/api/user/withdrawals", authMiddleware.AuthRequired())
 	{
-		withdrawalsRoute.GET("/", withdrawalsHandler.GetWithdrawalList) // withdrawal list history
+		withdrawalsRoute.GET("", withdrawalsHandler.GetWithdrawalList) // withdrawal list history
 	}
 
 	srv := &http.Server{Handler: router}
