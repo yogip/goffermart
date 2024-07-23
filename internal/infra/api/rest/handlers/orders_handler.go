@@ -8,7 +8,7 @@ import (
 	"goffermart/internal/logger"
 	"io"
 	"net/http"
-	"strconv"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -42,9 +42,18 @@ func (h *OrdersHandler) RegisterOrder(ctx *gin.Context) {
 		)
 		return
 	}
-	orderID, err := strconv.ParseInt(string(body), 10, 64)
-	if err != nil {
-		logger.Log.Warn("Error reading body for RegisterOrder route", zap.Error(err))
+	orderID := string(body)
+	isNumbers := regexp.MustCompile(`^[0-9]*$`).MatchString(orderID)
+	if !isNumbers {
+		logger.Log.Warn("Order ID must be numeric", zap.String("OrderID", orderID))
+		ctx.JSON(
+			http.StatusUnprocessableEntity,
+			gin.H{"status": false, "message": fmt.Sprintf("Error converting body: %s", err)},
+		)
+		return
+	}
+	if len(orderID) > 255 {
+		logger.Log.Warn("Order ID must be less then 255 symbols", zap.String("OrderID", orderID))
 		ctx.JSON(
 			http.StatusUnprocessableEntity,
 			gin.H{"status": false, "message": fmt.Sprintf("Error converting body: %s", err)},
@@ -53,7 +62,7 @@ func (h *OrdersHandler) RegisterOrder(ctx *gin.Context) {
 	}
 
 	log := logger.Log.With(
-		zap.Int64("OrderId", orderID),
+		zap.String("OrderId", orderID),
 		zap.Int64("UserID", user.ID),
 		zap.String("Login", user.Login),
 	)

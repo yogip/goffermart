@@ -48,7 +48,7 @@ func (r *OrderRepo) Tx(ctx context.Context) (*sql.Tx, error) {
 	return tx, nil
 }
 
-func (r *OrderRepo) CreateOrder(ctx context.Context, orderID int64, user *model.User) error {
+func (r *OrderRepo) CreateOrder(ctx context.Context, orderID string, user *model.User) error {
 	fun := func() error {
 		_, err := r.db.ExecContext(
 			ctx,
@@ -157,7 +157,7 @@ func (r *OrderRepo) ListOrdersForProcessing(ctx context.Context) (*[]model.Order
 			if err != nil {
 				return fmt.Errorf("read order error: %w", err)
 			}
-			logger.Log.Debug("ListOrdersForProcessing", zap.Int64("OrderId", o.ID))
+			logger.Log.Debug("ListOrdersForProcessing", zap.String("OrderId", o.ID))
 			orders = append(orders, o)
 		}
 

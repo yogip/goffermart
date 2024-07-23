@@ -32,7 +32,7 @@ func consumer(
 			limiter.EnsureLimit()
 
 			log := logger.Log.With(
-				zap.Int64("OrderID", order.ID),
+				zap.String("OrderID", order.ID),
 				zap.Int64("UserID", order.UserID),
 				zap.String("StatusOld", string(order.Status)),
 			)
@@ -93,7 +93,7 @@ func producer(ctx context.Context, ordersCh chan model.Order, repo *repo.OrderRe
 			logger.Log.Info("Finish to produce tasks")
 			return
 		}
-		logger.Log.Debug("Add order to processing queue", zap.Int64("OrderId", o.ID))
+		logger.Log.Debug("Add order to processing queue", zap.String("OrderId", o.ID))
 		ordersCh <- o
 	}
 }

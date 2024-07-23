@@ -64,7 +64,7 @@ func (h *BalanceHandler) WithdrawBonuces(ctx *gin.Context) {
 		return
 	}
 	log := logger.Log.With(
-		zap.Int64("OrderID", req.OrderID),
+		zap.String("OrderID", req.OrderID),
 		zap.Float64("WithdrawnBonuses", req.Sum),
 	)
 

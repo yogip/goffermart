@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS orders(
-    id       BIGINT PRIMARY KEY,
+    id       VARCHAR(255) PRIMARY KEY,
     user_id  BIGINT REFERENCES users (id),
     status   VARCHAR(20) NOT NULL DEFAULT 'NEW',
     created_at  TIMESTAMP DEFAULT now()

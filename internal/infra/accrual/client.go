@@ -57,8 +57,8 @@ func NewAccrualClient(config *config.Config) *AccrualClient {
 	}
 }
 
-func (c *AccrualClient) GetOrderAccrual(ctx context.Context, orderID int64) (*Accrual, error) {
-	url := fmt.Sprintf("%s/api/orders/%d", c.baseURL, orderID)
+func (c *AccrualClient) GetOrderAccrual(ctx context.Context, orderID string) (*Accrual, error) {
+	url := fmt.Sprintf("%s/api/orders/%s", c.baseURL, orderID)
 	output := &Accrual{}
 
 	resp, err := c.client.R().
@@ -79,7 +79,7 @@ func (c *AccrualClient) GetOrderAccrual(ctx context.Context, orderID int64) (*Ac
 		if err != nil {
 			logger.Log.Error(
 				"Could not parse Retry-After for GetOrderAccrual",
-				zap.Int64("OrderId", orderID),
+				zap.String("OrderId", orderID),
 				zap.String("RawRetryAfter", raw),
 			)
 			ra = 60
