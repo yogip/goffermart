@@ -11,6 +11,8 @@ import (
 	"goffermart/internal/infra/accrual"
 	"goffermart/internal/logger"
 	"goffermart/internal/retrier"
+
+	"go.uber.org/zap"
 )
 
 type BalanceRepo struct {
@@ -63,7 +65,7 @@ func (r *BalanceRepo) UpdateBalance(
 	accrual *accrual.Accrual,
 ) error {
 	fun := func() error {
-		_, err := tx.ExecContext(
+		res, err := tx.ExecContext(
 			ctx,
 			`INSERT INTO balance(user_id, current, withdrawn) values($1, $2, 0) 
 			ON CONFLICT(user_id) 
@@ -74,6 +76,13 @@ func (r *BalanceRepo) UpdateBalance(
 			tx.Rollback()
 			return err
 		}
+		affected, _ := res.RowsAffected()
+		logger.Log.Debug(
+			"Update user balance",
+			zap.Int64("UserID", userID),
+			zap.Int64("Rows affeted", affected),
+			zap.Float64("Accrual", accrual.Accrual),
+		)
 		return err
 
 	}

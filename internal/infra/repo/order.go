@@ -87,8 +87,8 @@ func (r *OrderRepo) UpdateAcrual(ctx context.Context, tx *sql.Tx, accrual *accru
 	fun := func() error {
 		_, err := tx.ExecContext(
 			ctx,
-			"UPDATE orders SET status=$1 WHERE id=$2",
-			accrual.Status, accrual.OrderID,
+			"UPDATE orders SET status=$1, accrual=$2 WHERE id=$3",
+			accrual.Status, accrual.Accrual, accrual.OrderID,
 		)
 
 		if err != nil {

@@ -39,7 +39,6 @@ func consumer(
 			log.Debug("Got order for processing")
 
 			acrual, err := client.GetOrderAccrual(ctx, order.ID)
-			log.Debug("Got Acrual resp")
 
 			var errTM *accrual.ErrorTooManyRequests
 			if errors.As(err, &errTM) {
@@ -53,10 +52,11 @@ func consumer(
 				log.Warn("There is no Accrual information. Skip this order and continue")
 				continue
 			}
-			log = logger.Log.With(
+			log = log.With(
 				zap.Float64("Accrual", acrual.Accrual),
 				zap.String("StatusNew", string(acrual.Status)),
 			)
+			log.Debug("Got Acrual resp")
 
 			// update order status and sum
 			tx, err := orderRepo.Tx(ctx)

@@ -10,7 +10,7 @@ const (
 )
 
 type Accrual struct {
-	OrderID string      `json:"number"`
+	OrderID string      `json:"order"`
 	Status  OrderStatus `json:"status"`
 	Accrual float64     `json:"accrual"`
 }
