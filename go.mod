@@ -3,6 +3,7 @@ module goffermart
 go 1.21.12
 
 require (
+	github.com/EClaesson/go-luhn v0.0.0-20210207103312-b1c12d658b70
 	github.com/caarlos0/env/v11 v11.1.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-resty/resty/v2 v2.13.1

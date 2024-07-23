@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"regexp"
 
+	luhn "github.com/EClaesson/go-luhn"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -52,11 +53,20 @@ func (h *OrdersHandler) RegisterOrder(ctx *gin.Context) {
 		)
 		return
 	}
-	if len(orderID) > 255 {
-		logger.Log.Warn("Order ID must be less then 255 symbols", zap.String("OrderID", orderID))
+	valid, err := luhn.IsValid(orderID)
+	if !valid {
+		logger.Log.Warn("Luch error", zap.String("OrderID", orderID), zap.Error(err))
 		ctx.JSON(
 			http.StatusUnprocessableEntity,
-			gin.H{"status": false, "message": fmt.Sprintf("Error converting body: %s", err)},
+			gin.H{"status": false, "message": fmt.Sprintf("Luch validation error: %s", err)},
+		)
+		return
+	}
+	if !valid {
+		logger.Log.Warn("Luch validation error", zap.String("OrderID", orderID))
+		ctx.JSON(
+			http.StatusUnprocessableEntity,
+			gin.H{"status": false, "message": "Luch validation error"},
 		)
 		return
 	}

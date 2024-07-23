@@ -9,6 +9,7 @@ import (
 	"goffermart/internal/logger"
 	"net/http"
 
+	luhn "github.com/EClaesson/go-luhn"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -67,6 +68,23 @@ func (h *BalanceHandler) WithdrawBonuces(ctx *gin.Context) {
 		zap.String("OrderID", req.OrderID),
 		zap.Float64("WithdrawnBonuses", req.Sum),
 	)
+	valid, err := luhn.IsValid(req.OrderID)
+	if !valid {
+		logger.Log.Warn("Luch error", zap.Error(err))
+		ctx.JSON(
+			http.StatusUnprocessableEntity,
+			gin.H{"status": false, "message": fmt.Sprintf("Luch validation error: %s", err)},
+		)
+		return
+	}
+	if !valid {
+		logger.Log.Warn("Luch validation error")
+		ctx.JSON(
+			http.StatusUnprocessableEntity,
+			gin.H{"status": false, "message": "Luch validation error"},
+		)
+		return
+	}
 
 	log.Debug("WithdrawBonuces handler")
 	user, err := h.getUser(ctx)
