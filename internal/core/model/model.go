@@ -41,7 +41,7 @@ type WithdrawRequest struct {
 }
 
 type Withdrawal struct {
-	OrderID     int64     `json:"order"`
+	OrderID     string    `json:"order"`
 	Sum         float64   `json:"sum"`
 	ProcessedAt time.Time `json:"processed_at"`
 }

@@ -65,14 +65,14 @@ func (r *BalanceRepo) UpdateBalance(
 	fun := func() error {
 		_, err := tx.ExecContext(
 			ctx,
-			`INSERT INTO(user_id, balance, withdrawn) balance($1, $2, 0) 
+			`INSERT INTO balance(user_id, current, withdrawn) values($1, $2, 0) 
 			ON CONFLICT(user_id) 
-			DO UPDATE SET balance = excluded.value + balance`,
+			DO UPDATE SET current = excluded.current + balance.current`,
 			userID, accrual.Accrual,
 		)
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("UpdateBalance error: %w", err)
+			return err
 		}
 		return err
 
@@ -80,7 +80,7 @@ func (r *BalanceRepo) UpdateBalance(
 
 	err := r.retrier.Do(ctx, fun, recoverableErrors...)
 	if err != nil {
-		return fmt.Errorf("get balance error: %w", err)
+		return fmt.Errorf("update balance error: %w", err)
 	}
 	return nil
 }
