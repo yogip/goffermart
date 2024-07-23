@@ -68,6 +68,7 @@ func consumer(
 			if err != nil {
 				tx.Rollback()
 				log.Warn("Could not UpdateAcrual. Skip this order, and continue", zap.Error(err))
+				continue
 			}
 
 			// increse balance
@@ -75,6 +76,7 @@ func consumer(
 			if err != nil {
 				tx.Rollback()
 				log.Warn("Could not UpdateBalance. Skip this order and continue", zap.Error(err))
+				continue
 			}
 
 			tx.Commit()
