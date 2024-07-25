@@ -52,7 +52,7 @@ func (r *OrderRepo) CreateOrder(ctx context.Context, orderID string, user *model
 	fun := func() error {
 		_, err := r.db.ExecContext(
 			ctx,
-			"INSERT INTO orders(id, user_id) values($1, $2)",
+			"INSERT INTO orders(id, user_id) VALUES($1, $2)",
 			orderID, user.ID,
 		)
 

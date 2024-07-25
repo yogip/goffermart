@@ -114,6 +114,7 @@ func (r *BalanceRepo) ProcessWithdrawl(ctx context.Context, user *model.User, re
 		)
 		err = row.Scan(&currentBalance)
 		if err != nil {
+			tx.Rollback()
 			return fmt.Errorf("update balance error: %w", err)
 		}
 		if currentBalance < 0 {
