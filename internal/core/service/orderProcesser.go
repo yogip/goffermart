@@ -1,0 +1,143 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"goffermart/internal/core/config"
+	"goffermart/internal/core/helpers"
+	"goffermart/internal/core/model"
+	"goffermart/internal/infra/accrual"
+	"goffermart/internal/infra/repo"
+	"goffermart/internal/logger"
+	"sync"
+
+	"time"
+
+	"go.uber.org/zap"
+)
+
+func consumer(
+	ctx context.Context,
+	ordersCh chan model.Order,
+	orderRepo *repo.OrderRepo,
+	balanceRepo *repo.BalanceRepo,
+	client *accrual.AccrualClient,
+	limiter *helpers.StopLimiter,
+	wg *sync.WaitGroup,
+) {
+	defer wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Log.Info("Stop consuming orders")
+			return
+		case order := <-ordersCh:
+			log := logger.Log.With(
+				zap.String("OrderID", order.ID),
+				zap.Int64("UserID", order.UserID),
+				zap.String("StatusOld", string(order.Status)),
+			)
+			log.Debug("Got order for processing")
+
+			var accrl *accrual.Accrual
+			var err error
+			for {
+				limiter.EnsureLimit()
+
+				accrl, err = client.GetOrderAccrual(ctx, order.ID)
+				var errTM *accrual.ErrorTooManyRequests
+				if errors.As(err, &errTM) {
+					limiter.StopUntil(errTM.RetryAfter)
+					continue
+				}
+				break
+			}
+			if err != nil {
+				log.Warn("Could not get Accrual information. Skip this order and continue", zap.Error(err))
+				break
+			}
+
+			if accrl == nil {
+				log.Warn("There is no Accrual information. Skip this order and continue")
+				continue
+			}
+			log = log.With(
+				zap.Float64("Accrual", accrl.Accrual),
+				zap.String("StatusNew", string(accrl.Status)),
+			)
+			log.Debug("Got Acrual resp")
+
+			// update order status and sum
+			tx, err := orderRepo.Tx(ctx)
+			if err != nil {
+				log.Warn("Could not start transaction. Skip this order and continue", zap.Error(err))
+				continue
+			}
+			err = orderRepo.UpdateAcrual(ctx, tx, accrl)
+			if err != nil {
+				tx.Rollback()
+				log.Warn("Could not UpdateAcrual. Skip this order, and continue", zap.Error(err))
+				continue
+			}
+
+			// increse balance
+			err = balanceRepo.UpdateBalance(ctx, tx, order.UserID, accrl)
+			if err != nil {
+				tx.Rollback()
+				log.Warn("Could not UpdateBalance. Skip this order and continue", zap.Error(err))
+				continue
+			}
+
+			tx.Commit()
+			// finish order processing
+		}
+	}
+}
+
+func producer(ctx context.Context, ordersCh chan model.Order, repo *repo.OrderRepo) {
+	orders, err := repo.ListOrdersForProcessing(ctx)
+	if err != nil {
+		logger.Log.Error("Could not process orders. Skip and try later.", zap.Error(err))
+	}
+	for _, o := range *orders {
+		if ctx.Err() != nil {
+			logger.Log.Info("Finish to produce tasks")
+			return
+		}
+		logger.Log.Debug("Add order to processing queue", zap.String("OrderId", o.ID))
+		ordersCh <- o
+	}
+}
+
+func RunProcessing(
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	cfg *config.Config,
+	orderRepo *repo.OrderRepo,
+	balanceRepo *repo.BalanceRepo,
+) {
+	logger.Log.Info("Start order processing worker")
+
+	intervalTicker := time.NewTicker(cfg.Accrual.Interval)
+	defer intervalTicker.Stop()
+
+	accrual := accrual.NewAccrualClient(cfg)
+	limiter := helpers.NewStopLimiter()
+
+	ordersCh := make(chan model.Order, cfg.Accrual.WorkersCount)
+	for i := 0; i < cfg.Accrual.WorkersCount; i++ {
+		wg.Add(1)
+		go consumer(ctx, ordersCh, orderRepo, balanceRepo, accrual, limiter, wg)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Log.Info("Stop processing orders")
+			close(ordersCh)
+			return
+		case <-intervalTicker.C:
+			producer(ctx, ordersCh, orderRepo)
+		}
+	}
+}
