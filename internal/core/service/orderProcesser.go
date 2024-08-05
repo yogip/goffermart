@@ -9,6 +9,7 @@ import (
 	"goffermart/internal/infra/accrual"
 	"goffermart/internal/infra/repo"
 	"goffermart/internal/logger"
+	"sync"
 
 	"time"
 
@@ -22,15 +23,15 @@ func consumer(
 	balanceRepo *repo.BalanceRepo,
 	client *accrual.AccrualClient,
 	limiter *helpers.StopLimiter,
+	wg *sync.WaitGroup,
 ) {
+	defer wg.Done()
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Log.Info("Stop consuming orders")
 			return
 		case order := <-ordersCh:
-			limiter.EnsureLimit()
-
 			log := logger.Log.With(
 				zap.String("OrderID", order.ID),
 				zap.Int64("UserID", order.UserID),
@@ -38,23 +39,31 @@ func consumer(
 			)
 			log.Debug("Got order for processing")
 
-			acrual, err := client.GetOrderAccrual(ctx, order.ID)
+			var accrl *accrual.Accrual
+			var err error
+			for {
+				limiter.EnsureLimit()
 
-			var errTM *accrual.ErrorTooManyRequests
-			if errors.As(err, &errTM) {
-				limiter.StopUntil(errTM.RetryAfter)
+				accrl, err = client.GetOrderAccrual(ctx, order.ID)
+				var errTM *accrual.ErrorTooManyRequests
+				if errors.As(err, &errTM) {
+					limiter.StopUntil(errTM.RetryAfter)
+					continue
+				}
+				break
 			}
 			if err != nil {
 				log.Warn("Could not get Accrual information. Skip this order and continue", zap.Error(err))
-				continue
+				break
 			}
-			if acrual == nil {
+
+			if accrl == nil {
 				log.Warn("There is no Accrual information. Skip this order and continue")
 				continue
 			}
 			log = log.With(
-				zap.Float64("Accrual", acrual.Accrual),
-				zap.String("StatusNew", string(acrual.Status)),
+				zap.Float64("Accrual", accrl.Accrual),
+				zap.String("StatusNew", string(accrl.Status)),
 			)
 			log.Debug("Got Acrual resp")
 
@@ -64,7 +73,7 @@ func consumer(
 				log.Warn("Could not start transaction. Skip this order and continue", zap.Error(err))
 				continue
 			}
-			err = orderRepo.UpdateAcrual(ctx, tx, acrual)
+			err = orderRepo.UpdateAcrual(ctx, tx, accrl)
 			if err != nil {
 				tx.Rollback()
 				log.Warn("Could not UpdateAcrual. Skip this order, and continue", zap.Error(err))
@@ -72,7 +81,7 @@ func consumer(
 			}
 
 			// increse balance
-			err = balanceRepo.UpdateBalance(ctx, tx, order.UserID, acrual)
+			err = balanceRepo.UpdateBalance(ctx, tx, order.UserID, accrl)
 			if err != nil {
 				tx.Rollback()
 				log.Warn("Could not UpdateBalance. Skip this order and continue", zap.Error(err))
@@ -102,6 +111,7 @@ func producer(ctx context.Context, ordersCh chan model.Order, repo *repo.OrderRe
 
 func RunProcessing(
 	ctx context.Context,
+	wg *sync.WaitGroup,
 	cfg *config.Config,
 	orderRepo *repo.OrderRepo,
 	balanceRepo *repo.BalanceRepo,
@@ -116,7 +126,8 @@ func RunProcessing(
 
 	ordersCh := make(chan model.Order, cfg.Accrual.WorkersCount)
 	for i := 0; i < cfg.Accrual.WorkersCount; i++ {
-		go consumer(ctx, ordersCh, orderRepo, balanceRepo, accrual, limiter)
+		wg.Add(1)
+		go consumer(ctx, ordersCh, orderRepo, balanceRepo, accrual, limiter, wg)
 	}
 
 	for {

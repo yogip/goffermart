@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -53,6 +54,8 @@ func run(ctx context.Context, cfg *config.Config) error {
 	}
 	defer db.Close()
 
+	cancelCtx, cancel := context.WithCancel(ctx)
+
 	repoUser := repo.NewUserRepo(db)
 	repoOrders := repo.NewOrderRepo(db)
 	repoBalance := repo.NewBalanceRepo(db)
@@ -62,7 +65,8 @@ func run(ctx context.Context, cfg *config.Config) error {
 	balanceService := service.NewBalanceService(repoBalance, &cfg.Server)
 	logger.Log.Info("Service initialized")
 
-	go service.RunProcessing(ctx, cfg, repoOrders, repoBalance)
+	var procWg sync.WaitGroup
+	go service.RunProcessing(cancelCtx, &procWg, cfg, repoOrders, repoBalance)
 
 	api := rest.NewAPI(cfg, iamService, ordersService, balanceService)
 
@@ -87,12 +91,15 @@ func run(ctx context.Context, cfg *config.Config) error {
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	if err := api.Shutdown(ctx); err != nil {
+	sdCtx, cancelApi := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelApi()
+	if err := api.Shutdown(sdCtx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}
+
+	logger.Log.Info("Waitng for processing goroutines to finish")
+	cancel()
+	procWg.Wait()
 
 	logger.Log.Info("Server exiting")
 	return nil
